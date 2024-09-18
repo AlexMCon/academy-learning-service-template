@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 cleanup() {
     echo "Terminating tendermint..."
     if kill -0 "$tm_subprocess_pid" 2>/dev/null; then

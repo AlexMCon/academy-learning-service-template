@@ -7,19 +7,19 @@ license: Apache-2.0
 fingerprint:
   README.md: bafybeid42pdrf6qrohedylj4ijrss236ai6geqgf3he44huowiuf7pl464
 fingerprint_ignore_patterns: []
-agent: valory/learning_agent:0.1.0:bafybeibekcecbhrr75vqa65n3gxlmdj65igypfq5oyqv76vhgwfr7k6ykm
+agent: valory/learning_agent:0.1.0:bafybeigx45isj47rqw76v4fdp6mfhktf2yroveszp4dr4jeq666pewqce4
 number_of_agents: 4
 deployment:
   agent:
     ports:
       0:
-        8000: 8000
+        50101: 8000
       1:
-        8001: 8000
+        50102: 8000
       2:
-        8002: 8000
+        50103: 8000
       3:
-        8003: 8000
+        50104: 8000
 ---
 public_id: valory/learning_chained_abci:0.1.0
 type: skill

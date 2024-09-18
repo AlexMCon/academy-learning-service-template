@@ -19,7 +19,7 @@
 
 """This module contains the shared state for the abci skill of LearningAbciApp."""
 
-from typing import Any
+from typing import Any, TypedDict
 
 from packages.valory.skills.abstract_round_abci.models import BaseParams
 from packages.valory.skills.abstract_round_abci.models import (
@@ -55,3 +55,9 @@ class Params(BaseParams):
             "transfer_target_address", kwargs, str
         )
         super().__init__(*args, **kwargs)
+        
+class AutonolasData(TypedDict):
+    usd: float
+
+class CoinData(TypedDict):
+    autonolas: AutonolasData
