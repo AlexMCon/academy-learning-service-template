@@ -35,7 +35,7 @@ autonomy fetch --local --agent valory/learning_agent
 
 # Replace params with env vars
 source .env
-python scripts/aea-config-replace.py
+python3 scripts/aea-config-replace.py
 
 # Copy and add the keys and issue certificates
 cd learning_agent

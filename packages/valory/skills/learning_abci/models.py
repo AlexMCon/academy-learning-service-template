@@ -54,6 +54,10 @@ class Params(BaseParams):
         self.transfer_target_address = self._ensure(
             "transfer_target_address", kwargs, str
         )
+        self.wxdai_contract_address = self._ensure(
+            "wxdai_contract_address", kwargs, str
+        )
+
         super().__init__(*args, **kwargs)
         
 class AutonolasData(TypedDict):
