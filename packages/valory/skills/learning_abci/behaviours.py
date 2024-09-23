@@ -20,14 +20,18 @@
 """This package contains round behaviours of LearningAbciApp."""
 
 from abc import ABC
+import json
+import random
 from typing import Generator, Set, Type, cast
+
+from aea_ledger_cosmos import AEAEnforceError
 
 from packages.valory.skills.abstract_round_abci.base import AbstractRound
 from packages.valory.skills.abstract_round_abci.behaviours import (
     AbstractRoundBehaviour,
     BaseBehaviour,
 )
-from packages.valory.skills.learning_abci.models import Params, SharedState
+from packages.valory.skills.learning_abci.models import CoinData, Params, SharedState
 from packages.valory.skills.learning_abci.payloads import (
     APICheckPayload,
     DecisionMakingPayload,
@@ -93,9 +97,15 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
     def get_price(self):
         """Get token price from Coingecko"""
         # Interact with Coingecko's API
-        # result = yield from self.get_http_response("coingecko.com")
-        yield
-        price = 1.0
+        coingecko_api_key = self.params.coingecko_api_key
+        coingecko_url = self.params.coingecko_price_template.replace("{api_key}", coingecko_api_key)
+        
+        result = yield from self.get_http_response(
+            url=coingecko_url,
+            method="GET",
+        )
+        data: CoinData = json.loads(result.body)
+        price = data["autonolas"]["usd"]
         self.context.logger.info(f"Price is {price}")
         return price
 
@@ -103,8 +113,20 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
         """Get balance"""
         # Use the contract api to interact with the ERC20 contract
         # result = yield from self.get_contract_api_response()
-        yield
-        balance = 1.0
+        # self.logger.info("Getting balance from ledger...")
+        # self.logger.info("Getting balance from ledger...")
+        # self.logger.info("Getting balance from ledger...")
+        # self.logger.info("Getting balance from ledger...")
+        # ledger_api_response = yield from self.get_ledger_api_response(
+        #     performative=LedgerApiMessage.Performative.GET_STATE, # type: ignore
+        #     ledger_callable="get_balance",
+        #     account=self.context.agent_address,
+        # )
+        # try:
+        #     balance = int(ledger_api_response.state.body["get_balance_result"])
+        # except (AEAEnforceError, KeyError, ValueError, TypeError):
+        #     balance = None
+        balance = None
         self.context.logger.info(f"Balance is {balance}")
         return balance
 
@@ -132,8 +154,13 @@ class DecisionMakingBehaviour(
 
     def get_event(self):
         """Get the next event"""
-        # Using the token price from the previous round, decide whether we should make a transfer or not
-        event = Event.DONE.value
+        targeted_price = random.choice([0.8, 1])
+        self.context.logger.info(f"Targeted price is {targeted_price}")
+        if (self.synchronized_data.price > targeted_price):
+            event = Event.TRANSACT.value
+        else:
+            event = Event.DONE.value
+        
         self.context.logger.info(f"Event is {event}")
         return event
 
