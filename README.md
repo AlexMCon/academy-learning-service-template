@@ -1,98 +1,36 @@
-## Learning Service
+# TranspTransact
 
-A service to learn about [Olas](https://olas.network/) agents and [Open Autonomy](https://github.com/valory-xyz/open-autonomy).
+TranspTransact is a minimal viable product (MVP) platform designed to facilitate interactions among three types of companies in business:
 
+1. **Transporters**
+2. **Buyers** (bulk purchase)
+3. **Sellers** (bulk sale)
 
-## System requirements
+## Overview
 
-- Python `>=3.10`
-- [Tendermint](https://docs.tendermint.com/v0.34/introduction/install.html) `==0.34.19`
-- [IPFS node](https://docs.ipfs.io/install/command-line/#official-distributions) `==0.6.0`
-- [Pip](https://pip.pypa.io/en/stable/installation/)
-- [Poetry](https://python-poetry.org/)
-- [Docker Engine](https://docs.docker.com/engine/install/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- [Set Docker permissions so you can run containers as non-root user](https://docs.docker.com/engine/install/linux-postinstall/)
+This project comprises a complete solution, including a front-end, back-end, and a deployed contract on a Gnosis Fork, as well as the implementation of agent logic.
 
+## Project Flow
 
-## Run you own agent
+1. **Order Creation**: 
+   - An order is created detailing the products being transported, the distance involved, the payments associated, and the initial and end checkpoints (the route for the truck).
+   - Four wallet addresses are designated as 'approvers' for this order.
 
-### Get the code
+2. **Truck Tracking**: 
+   - A geolocation API (currently mocked for demonstration purposes) tracks the truck's journey. Once it reaches the end checkpoint, its arrival is recorded in the database.
 
-1. Clone this repo:
+3. **Approval Process**:
+   - Upon arrival, the front-end interface allows each of the assigned approvers (from the transporter, buyer, seller, and platform) to mark the transaction as approved.
+   - The approvers are the addresses set in the initial order creation.
 
-    ```
-    git clone git@github.com:valory-xyz/academy-learning-service-template.git
-    ```
+4. **Agent Responsibilities**:
+   The agent performs several critical tasks:
+   a. Fetch all unfinalized orders from the back-end.
+   b. Check the database for an order hash, which represents the order data saved on IPFS.
+   c. If no order hash exists, save the order data to IPFS and upload it to the API.
+   d. Each agent verifies whether the party assigned to them (seller, buyer, transporter, or platform) has approved the transaction.
+   e. If a majority (3 out of 4) of the parties approve, a transaction is executed. (Initially, there were plans to implement a multisend transaction for the multiple financial transactions involved, but due to time constraints, this feature was not completed.)
 
-2. Create the virtual environment:
+## Platform Role
 
-    ```
-    cd academy-learning-service
-    poetry shell
-    poetry install
-    ```
-
-3. Sync packages:
-
-    ```
-    autonomy packages sync --update-packages
-    ```
-
-### Prepare the data
-
-1. Prepare a `keys.json` file containing wallet address and the private key for each of the four agents.
-
-    ```
-    autonomy generate-key ethereum -n 4
-    ```
-
-2. Prepare a `ethereum_private_key.txt` file containing one of the private keys from `keys.json`. Ensure that there is no newline at the end.
-
-3. Deploy a [Safe on Gnosis](https://app.safe.global/welcome) (it's free) and set your agent addresses as signers. Set the signature threshold to 3 out of 4.
-
-4. Create a [Tenderly](https://tenderly.co/) account and from your dashboard create a fork of Gnosis chain (virtual testnet).
-
-5. From Tenderly, fund your agents and Safe with a small amount of xDAI, i.e. $0.02 each.
-
-6. Make a copy of the env file:
-
-    ```
-    cp sample.env .env
-    ```
-
-7. Fill in the required environment variables in .env. These variables are: `ALL_PARTICIPANTS`, `GNOSIS_LEDGER_RPC`, `COINGECKO_API_KEY` and `SAFE_CONTRACT_ADDRESS`. You will need to get a [Coingecko](https://www.coingecko.com/). Set `GNOSIS_LEDGER_RPC` to your Tenderly fork Admin RPC.
-
-### Run a single agent
-
-1. Verify that `ALL_PARTICIPANTS` in `.env` contains only 1 address.
-
-2. Run the agent:
-
-    ```
-    bash run_agent.sh
-    ```
-
-### Run the service (4 agents)
-
-1. Check that Docker is running:
-
-    ```
-    docker
-    ```
-
-2. Verify that `ALL_PARTICIPANTS` in `.env` contains 4 addresses.
-
-3. Run the service:
-
-    ```
-    bash run_service.sh
-    ```
-
-4. Look at the service logs for one of the agents (on another terminal):
-
-    ```
-    docker logs -f learningservice_abci_0
-    ```
-
-
+TranspTransact not only acts as a matchmaking service but also serves as a guarantor to ensure that funds reach their intended destination. Approval from at least two of the three parties is required for the transaction to proceed. The platform will conduct its own investigations in the event of a dispute and will not approve transactions without due diligence.
