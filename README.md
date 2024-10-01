@@ -25,6 +25,7 @@ This project comprises a complete solution, including a front-end, back-end, and
 
 4. **Agent Responsibilities**:
    The agent performs several critical tasks:
+
    a. Fetch all unfinalized orders from the back-end.
 
    b. Check the database for an order hash, which represents the order data saved on IPFS.
