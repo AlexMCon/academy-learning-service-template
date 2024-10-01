@@ -1,0 +1,31 @@
+name: checkpoint_approval
+author: valory
+version: 0.1.0
+type: contract
+description: CheckpointApproval contract
+license: Apache-2.0
+aea_version: '>=1.0.0, <2.0.0'
+fingerprint:
+  README.md: bafybeibzxxteg3eofflwbmljqp7kdzajpvtharg3navk34h7i4u6bpi5hy
+  __init__.py: bafybeialksnt2uyihxaemla3n4zrnwq5aun3nylwxd3nkv55mqoxbusnhe
+  build/CheckpointApproval.json: bafybeifj2vsfnnpuiopumya4kh3d4jeenjvip3zahjxg4hveqvaluwyc4u
+  contract.py: bafybeidjzmsfzfsgiaoxunh23zhbxz3ssz7qzygnitofl2ebtpryopps2y
+fingerprint_ignore_patterns: []
+contracts: []
+class_name: CheckpointApproval
+contract_interface_paths:
+  ethereum: build/CheckpointApproval.json
+dependencies:
+  ecdsa:
+    version: '>=0.15'
+  eth_typing: {}
+  hexbytes: {}
+  open-aea-ledger-ethereum:
+    version: ==1.55.0
+  open-aea-test-autonomy:
+    version: ==0.15.2
+  packaging: {}
+  requests:
+    version: ==2.28.1
+  web3:
+    version: <7,>=6.0.0

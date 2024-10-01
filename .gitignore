@@ -13,6 +13,7 @@ learning_service
 packages/valory/agents/*
 packages/valory/connections/*
 packages/valory/contracts/*
+!packages/valory/contracts/checkpoint_approval/
 packages/valory/services/*
 packages/valory/protocols/*
 packages/valory/skills/*
