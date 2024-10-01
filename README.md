@@ -26,9 +26,13 @@ This project comprises a complete solution, including a front-end, back-end, and
 4. **Agent Responsibilities**:
    The agent performs several critical tasks:
    a. Fetch all unfinalized orders from the back-end.
+
    b. Check the database for an order hash, which represents the order data saved on IPFS.
+
    c. If no order hash exists, save the order data to IPFS and upload it to the API.
+
    d. Each agent verifies whether the party assigned to them (seller, buyer, transporter, or platform) has approved the transaction.
+
    e. If a majority (3 out of 4) of the parties approve, a transaction is executed. (Initially, there were plans to implement a multisend transaction for the multiple financial transactions involved, but due to time constraints, this feature was not completed.)
 
 ## Platform Role
