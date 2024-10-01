@@ -64,19 +64,30 @@ class SynchronizedData(BaseSynchronizedData):
         return CollectionRound.deserialize_collection(serialized)
 
     @property
-    def price(self) -> Optional[float]:
-        """Get the token price."""
-        return self.db.get("price", None)
+    def order_id(self) -> Optional[str]:
+        """Get the order id."""
+        return self.db.get("order_id", None)
 
     @property
-    def balance(self) -> Optional[float]:
-        """Get the token balance."""
-        return self.db.get("balance", None)
+    def checkpoint_id(self) -> Optional[str]:
+        """Get the checkpoint id."""
+        return self.db.get("checkpoint_id", None)
+    
+    @property
+    def order_hash(self) -> Optional[str]:
+        """Get the order hash."""
+        return self.db.get("order_hash", None)
 
     @property
-    def participant_to_price_round(self) -> DeserializedCollection:
-        """Get the participants to the price round."""
-        return self._get_deserialized("participant_to_price_round")
+    def participant_to_api_round(self) -> DeserializedCollection:
+        """Get the participants to the api round."""
+        return self._get_deserialized("participant_to_api_round")
+    
+    @property
+    def participant_to_ipfs_round(self) -> DeserializedCollection:
+        """Get the participants to the ipfs round."""
+        return self._get_deserialized("participant_to_ipfs_round")
+
 
     @property
     def most_voted_tx_hash(self) -> Optional[float]:
@@ -101,14 +112,26 @@ class APICheckRound(CollectSameUntilThresholdRound):
     synchronized_data_class = SynchronizedData
     done_event = Event.DONE
     no_majority_event = Event.NO_MAJORITY
-    collection_key = get_name(SynchronizedData.participant_to_price_round)
+    collection_key = get_name(SynchronizedData.participant_to_api_round)
     selection_key = (
-        get_name(SynchronizedData.price),
-        get_name(SynchronizedData.balance),
+        get_name(SynchronizedData.checkpoint_id),
+        get_name(SynchronizedData.order_id),
+        get_name(SynchronizedData.order_hash),
     )
 
     # Event.ROUND_TIMEOUT  # this needs to be referenced for static checkers
 
+# class IPFSDataUploadRound(CollectSameUntilThresholdRound):
+#     """IPFSDataUploadRound"""
+
+#     payload_class = IPFSDataUploadPayload
+#     synchronized_data_class = SynchronizedData
+#     done_event = Event.DONE
+#     no_majority_event = Event.NO_MAJORITY
+#     collection_key = get_name(SynchronizedData.participant_to_ipfs_round)
+#     selection_key = (
+#         get_name(SynchronizedData.ipfs_hash),
+#     )
 
 class DecisionMakingRound(CollectSameUntilThresholdRound):
     """DecisionMakingRound"""
@@ -170,8 +193,13 @@ class LearningAbciApp(AbciApp[Event]):
             Event.ROUND_TIMEOUT: APICheckRound,
             Event.DONE: DecisionMakingRound,
         },
+        # IPFSDataUploadRound: {
+        #     Event.NO_MAJORITY: IPFSDataUploadRound,
+        #     Event.ROUND_TIMEOUT: IPFSDataUploadRound,
+        #     Event.DONE: DecisionMakingRound,
+        # },
         DecisionMakingRound: {
-            Event.NO_MAJORITY: DecisionMakingRound,
+            Event.NO_MAJORITY: FinishedDecisionMakingRound,
             Event.ROUND_TIMEOUT: DecisionMakingRound,
             Event.DONE: FinishedDecisionMakingRound,
             Event.ERROR: FinishedDecisionMakingRound,

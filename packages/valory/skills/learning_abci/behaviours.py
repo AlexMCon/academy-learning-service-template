@@ -29,12 +29,14 @@ from aea_ledger_cosmos import AEAEnforceError
 from packages.valory.contracts.gnosis_safe.contract import GnosisSafeContract
 from packages.valory.protocols.contract_api import ContractApiMessage
 from packages.valory.contracts.erc20.contract import ERC20
+from packages.valory.contracts.checkpoint_approval.contract import CheckpointApproval
 from packages.valory.protocols.ledger_api import LedgerApiMessage
 from packages.valory.skills.abstract_round_abci.base import AbstractRound
 from packages.valory.skills.abstract_round_abci.behaviours import (
     AbstractRoundBehaviour,
     BaseBehaviour,
 )
+from packages.valory.skills.abstract_round_abci.io_.store import SupportedFiletype
 from packages.valory.skills.learning_abci.models import CoinData, Params, SharedState
 from packages.valory.skills.learning_abci.payloads import (
     APICheckPayload,
@@ -88,10 +90,24 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
         """Do the act, supporting asynchronous execution."""
 
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            self.context.logger.info(f"current round: {self.synchronized_data.round_count}")
             sender = self.context.agent_address
-            price = yield from self.get_price()
-            balance = yield from self.get_balance()
-            payload = APICheckPayload(sender=sender, price=price, balance=balance)
+            data = yield from self.get_unfinalized_orders()
+            order_id = ''
+            checkpoint_id = ''
+            if data and len(data) > 0:
+                order_info=data[0]
+                order_id = order_info['id']
+                checkpoint_id = order_info['endCheckpointId']
+                order_hash = yield from self.send_to_ipfs(
+                    "order_data.json",
+                    order_info,
+                    filetype=SupportedFiletype.JSON,
+                    timeout=10.0
+                )
+
+            # Creating the payload with the extracted values
+            payload = APICheckPayload(sender=sender, checkpoint_id=checkpoint_id, order_id=order_id, order_hash=order_hash)
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
             yield from self.send_a2a_transaction(payload)
@@ -99,45 +115,34 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
 
         self.set_done()
 
-    def get_price(self):
+    def get_unfinalized_orders(self):
         """Get token price from Coingecko"""
         # Interact with Coingecko's API
-        coingecko_api_key = self.params.coingecko_api_key
-        coingecko_url = self.params.coingecko_price_template.replace("{api_key}", coingecko_api_key)
-        
+        url = self.params.api_url + "/agents/orders/unfinalized"
+        agent_api_key = self.params.agent_api_key
+        self.context.logger.info(f"agent_api_key is {agent_api_key}")
+        self.context.logger.info(f"Getting unfinalized orders from {url}")
         result = yield from self.get_http_response(
-            url=coingecko_url,
+            url=url,
             method="GET",
+            headers={
+                "x-api-key": agent_api_key,
+                "Content-Type": "application/json",
+            }
         )
-        data: CoinData = json.loads(result.body)
-        price = data["autonolas"]["usd"]
-        self.context.logger.info(f"Price is {price}")
-        return price
+        data = json.loads(result.body)
+        return data
 
-    def get_balance(self):
-        """Get balance"""
-        # Use the contract api to interact with the ERC20 contract
-        # result = yield from self.get_contract_api_response()
-        self.context.logger.info(f"Getting balance from ledger...")
-        self.context.logger.info(f"Safe contract address is {self.synchronized_data.safe_contract_address}")
 
-        wxdai_contract_address=self.params.wxdai_contract_address
-        contract_api_response = yield from self.get_contract_api_response(
-            performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION, # type: ignore
-            contract_address=wxdai_contract_address,
-            account=self.synchronized_data.safe_contract_address,
-            contract_id=str(ERC20.contract_id),
-            contract_callable="check_balance",
-            chain_id=GNOSIS_CHAIN_ID,
-        )
-        self.context.logger.info(f"response: {contract_api_response}")
-        try:
-            balance = contract_api_response.raw_transaction.body.get('token')
-        except (AEAEnforceError, KeyError, ValueError, TypeError):
-            balance = None
-        self.context.logger.info(f"Balance is {balance}")
-        return balance
-
+        # contract_api_response_2 = yield from self.get_contract_api_response(
+        #     performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+        #     chain_id=GNOSIS_CHAIN_ID,
+        #     contract_id=str(CheckpointApproval.contract_id),
+        #     contract_address="0x60cC6fBa5461fB24b5363a0Ee4B8A2Aff0197883",
+        #     contract_callable="get_approval_status",
+        #     checkpoint_id=2,
+        #     party="seller"
+        # )
 
 class DecisionMakingBehaviour(
     LearningBaseBehaviour
@@ -150,8 +155,24 @@ class DecisionMakingBehaviour(
         """Do the act, supporting asynchronous execution."""
 
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            self.context.logger.info(f"hash: {self.synchronized_data.order_hash}")
             sender = self.context.agent_address
-            event = self.get_event()
+            check_approval_contract_address = self.params.check_approval_contract_address
+            agent_party = self.params.agent_party
+            contract_api_response = yield from self.get_contract_api_response(
+                performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+                chain_id=GNOSIS_CHAIN_ID,
+                contract_id=str(CheckpointApproval.contract_id),
+                contract_address=check_approval_contract_address,
+                contract_callable="get_approval_status",
+                checkpoint_id=2,
+                party=agent_party
+            )
+            approved = contract_api_response.raw_transaction.body.get('approved')
+            if approved:
+                event = Event.TRANSACT.value
+            else:
+                event = Event.DONE.value
             payload = DecisionMakingPayload(sender=sender, event=event)
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
@@ -159,19 +180,6 @@ class DecisionMakingBehaviour(
             yield from self.wait_until_round_end()
 
         self.set_done()
-
-    def get_event(self):
-        """Get the next event"""
-        targeted_price = 1.2
-        self.context.logger.info(f"Targeted price is {targeted_price}")
-        if (self.synchronized_data.price > targeted_price):
-            event = Event.TRANSACT.value
-        else:
-            event = Event.DONE.value
-        
-        self.context.logger.info(f"Event is {event}")
-        return event
-
 
 class TxPreparationBehaviour(
     LearningBaseBehaviour
