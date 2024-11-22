@@ -13,14 +13,18 @@ start_states:
 - APICheckRound
 states:
 - APICheckRound
-- DecisionMakingRound
+- IPFSDataUploadRound # upload to ipfs then make API Call
+- DecisionMakingRound # read contract for order
 - FinishedDecisionMakingRound
 - FinishedTxPreparationRound
 - TxPreparationRound
 transition_func:
-    (APICheckRound, DONE): DecisionMakingRound
+    (APICheckRound, DONE): IPFSDataUploadRound
     (APICheckRound, NO_MAJORITY): APICheckRound
     (APICheckRound, ROUND_TIMEOUT): APICheckRound
+    (IPFSDataUploadRound, DONE): DecisionMakingRound
+    (IPFSDataUploadRound, NO_MAJORITY): IPFSDataUploadRound
+    (IPFSDataUploadRound, ROUND_TIMEOUT): IPFSDataUploadRound
     (DecisionMakingRound, DONE): FinishedDecisionMakingRound
     (DecisionMakingRound, ERROR): FinishedDecisionMakingRound
     (DecisionMakingRound, NO_MAJORITY): DecisionMakingRound

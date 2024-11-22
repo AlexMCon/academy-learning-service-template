@@ -20,14 +20,24 @@
 """This package contains round behaviours of LearningAbciApp."""
 
 from abc import ABC
+import json
+import random
 from typing import Generator, Set, Type, cast
 
+from aea_ledger_cosmos import AEAEnforceError
+
+from packages.valory.contracts.gnosis_safe.contract import GnosisSafeContract
+from packages.valory.protocols.contract_api import ContractApiMessage
+from packages.valory.contracts.erc20.contract import ERC20
+from packages.valory.contracts.checkpoint_approval.contract import CheckpointApproval
+from packages.valory.protocols.ledger_api import LedgerApiMessage
 from packages.valory.skills.abstract_round_abci.base import AbstractRound
 from packages.valory.skills.abstract_round_abci.behaviours import (
     AbstractRoundBehaviour,
     BaseBehaviour,
 )
-from packages.valory.skills.learning_abci.models import Params, SharedState
+from packages.valory.skills.abstract_round_abci.io_.store import SupportedFiletype
+from packages.valory.skills.learning_abci.models import CoinData, Params, SharedState
 from packages.valory.skills.learning_abci.payloads import (
     APICheckPayload,
     DecisionMakingPayload,
@@ -41,6 +51,7 @@ from packages.valory.skills.learning_abci.rounds import (
     SynchronizedData,
     TxPreparationRound,
 )
+from packages.valory.skills.transaction_settlement_abci.payload_tools import hash_payload_to_hex
 
 
 HTTP_OK = 200
@@ -79,10 +90,24 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
         """Do the act, supporting asynchronous execution."""
 
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            self.context.logger.info(f"current round: {self.synchronized_data.round_count}")
             sender = self.context.agent_address
-            price = yield from self.get_price()
-            balance = yield from self.get_balance()
-            payload = APICheckPayload(sender=sender, price=price, balance=balance)
+            data = yield from self.get_unfinalized_orders()
+            order_id = ''
+            checkpoint_id = ''
+            if data and len(data) > 0:
+                order_info=data[0]
+                order_id = order_info['id']
+                checkpoint_id = order_info['endCheckpointId']
+                order_hash = yield from self.send_to_ipfs(
+                    "order_data.json",
+                    order_info,
+                    filetype=SupportedFiletype.JSON,
+                    timeout=10.0
+                )
+
+            # Creating the payload with the extracted values
+            payload = APICheckPayload(sender=sender, checkpoint_id=checkpoint_id, order_id=order_id, order_hash=order_hash)
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
             yield from self.send_a2a_transaction(payload)
@@ -90,24 +115,34 @@ class APICheckBehaviour(LearningBaseBehaviour):  # pylint: disable=too-many-ance
 
         self.set_done()
 
-    def get_price(self):
+    def get_unfinalized_orders(self):
         """Get token price from Coingecko"""
         # Interact with Coingecko's API
-        # result = yield from self.get_http_response("coingecko.com")
-        yield
-        price = 1.0
-        self.context.logger.info(f"Price is {price}")
-        return price
+        url = self.params.api_url + "/agents/orders/unfinalized"
+        agent_api_key = self.params.agent_api_key
+        self.context.logger.info(f"agent_api_key is {agent_api_key}")
+        self.context.logger.info(f"Getting unfinalized orders from {url}")
+        result = yield from self.get_http_response(
+            url=url,
+            method="GET",
+            headers={
+                "x-api-key": agent_api_key,
+                "Content-Type": "application/json",
+            }
+        )
+        data = json.loads(result.body)
+        return data
 
-    def get_balance(self):
-        """Get balance"""
-        # Use the contract api to interact with the ERC20 contract
-        # result = yield from self.get_contract_api_response()
-        yield
-        balance = 1.0
-        self.context.logger.info(f"Balance is {balance}")
-        return balance
 
+        # contract_api_response_2 = yield from self.get_contract_api_response(
+        #     performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+        #     chain_id=GNOSIS_CHAIN_ID,
+        #     contract_id=str(CheckpointApproval.contract_id),
+        #     contract_address="0x60cC6fBa5461fB24b5363a0Ee4B8A2Aff0197883",
+        #     contract_callable="get_approval_status",
+        #     checkpoint_id=2,
+        #     party="seller"
+        # )
 
 class DecisionMakingBehaviour(
     LearningBaseBehaviour
@@ -120,8 +155,24 @@ class DecisionMakingBehaviour(
         """Do the act, supporting asynchronous execution."""
 
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
+            self.context.logger.info(f"hash: {self.synchronized_data.order_hash}")
             sender = self.context.agent_address
-            event = self.get_event()
+            check_approval_contract_address = self.params.check_approval_contract_address
+            agent_party = self.params.agent_party
+            contract_api_response = yield from self.get_contract_api_response(
+                performative=ContractApiMessage.Performative.GET_RAW_TRANSACTION,  # type: ignore
+                chain_id=GNOSIS_CHAIN_ID,
+                contract_id=str(CheckpointApproval.contract_id),
+                contract_address=check_approval_contract_address,
+                contract_callable="get_approval_status",
+                checkpoint_id=2,
+                party=agent_party
+            )
+            approved = contract_api_response.raw_transaction.body.get('approved')
+            if approved:
+                event = Event.TRANSACT.value
+            else:
+                event = Event.DONE.value
             payload = DecisionMakingPayload(sender=sender, event=event)
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
@@ -129,14 +180,6 @@ class DecisionMakingBehaviour(
             yield from self.wait_until_round_end()
 
         self.set_done()
-
-    def get_event(self):
-        """Get the next event"""
-        # Using the token price from the previous round, decide whether we should make a transfer or not
-        event = Event.DONE.value
-        self.context.logger.info(f"Event is {event}")
-        return event
-
 
 class TxPreparationBehaviour(
     LearningBaseBehaviour
@@ -151,8 +194,15 @@ class TxPreparationBehaviour(
         with self.context.benchmark_tool.measure(self.behaviour_id).local():
             sender = self.context.agent_address
             tx_hash = yield from self.get_tx_hash()
+            safe_tx = hash_payload_to_hex(
+                safe_tx_hash=tx_hash,
+                ether_value=10**18,
+                safe_tx_gas=SAFE_GAS,
+                to_address=self.params.transfer_target_address,
+                data=TX_DATA,
+            )
             payload = TxPreparationPayload(
-                sender=sender, tx_submitter=None, tx_hash=tx_hash
+                sender=sender, tx_submitter=None, tx_hash=safe_tx
             )
 
         with self.context.benchmark_tool.measure(self.behaviour_id).consensus():
@@ -164,8 +214,25 @@ class TxPreparationBehaviour(
     def get_tx_hash(self):
         """Get the tx hash"""
         # We need to prepare a 1 wei transfer from the safe to another (configurable) account.
-        yield
-        tx_hash = None
+        response = yield from self.get_contract_api_response(
+            performative=ContractApiMessage.Performative.GET_STATE, # type: ignore
+            contract_address=self.synchronized_data.safe_contract_address,
+            contract_id=str(GnosisSafeContract.contract_id),
+            contract_callable="get_raw_safe_transaction_hash",
+            chain_id=GNOSIS_CHAIN_ID,
+            to_address=self.params.transfer_target_address,
+            data=TX_DATA,
+            safe_tx_gas=SAFE_GAS,
+            value=10**18
+        )
+
+        if response.performative != ContractApiMessage.Performative.STATE:
+            self.context.logger.error(
+                f"{response.performative.value} vs {ContractApiMessage.Performative.STATE.value}"
+            )
+            return None
+        tx_hash_data = cast(str, response.state.body["tx_hash"])
+        tx_hash = tx_hash_data[2:]
         self.context.logger.info(f"Transaction hash is {tx_hash}")
         return tx_hash
 

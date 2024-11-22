@@ -22,7 +22,7 @@ skills:
 - valory/registration_abci:0.1.0:bafybeicnth5q4httefsusywx3zrrq4al47owvge72dqf2fziruicq6hqta
 - valory/reset_pause_abci:0.1.0:bafybeievjciqdvxhqxfjd4whqs27h6qbxqzrae7wwj7fpvxlvmtw3x35im
 - valory/termination_abci:0.1.0:bafybeid54buqxipiuduw7b6nnliiwsxajnltseuroad53wukfonpxca2om
-- valory/learning_abci:0.1.0:bafybeics2eywsq54efsjf6f7cntvt3mlf6cjwuwoptuepfq4vvdovhxs7e
+- valory/learning_abci:0.1.0:bafybeiazholqej7tr6gktrhwfkl6qmgvdym2kp3x2xvvijqbkhc2f62rbi
 - valory/transaction_settlement_abci:0.1.0:bafybeihq2yenstblmaadzcjousowj5kfn5l7ns5pxweq2gcrsczfyq5wzm
 behaviours:
   main:
@@ -138,6 +138,11 @@ models:
       coingecko_api_key: null
       default_chain_id: gnosis
       transfer_target_address: '0x0000000000000000000000000000000000000000'
+      wxdai_contract_address: '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d'
+      agent_api_key: Bearer 1232
+      api_url: http://192.168.100.130:8091
+      check_approval_contract_address: '0x60cC6fBa5461fB24b5363a0Ee4B8A2Aff0197883'
+      agent_party: not
     class_name: Params
   randomness_api:
     args:

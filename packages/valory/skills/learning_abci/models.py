@@ -19,7 +19,7 @@
 
 """This module contains the shared state for the abci skill of LearningAbciApp."""
 
-from typing import Any
+from typing import Any, TypedDict
 
 from packages.valory.skills.abstract_round_abci.models import BaseParams
 from packages.valory.skills.abstract_round_abci.models import (
@@ -47,11 +47,29 @@ class Params(BaseParams):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the parameters object."""
-        self.coingecko_price_template = self._ensure(
-            "coingecko_price_template", kwargs, str
+        self.api_url = self._ensure(
+            "api_url", kwargs, str
         )
-        self.coingecko_api_key = kwargs.get("coingecko_api_key", None)
+        self.agent_api_key = self._ensure(
+            "agent_api_key", kwargs, str
+        )
+        self.wxdai_contract_address = self._ensure(
+            "wxdai_contract_address", kwargs, str
+        )
+        self.agent_party = self._ensure(
+            "agent_party", kwargs, str
+        )
         self.transfer_target_address = self._ensure(
             "transfer_target_address", kwargs, str
         )
+        self.check_approval_contract_address = self._ensure(
+            "check_approval_contract_address", kwargs, str
+        )
+
         super().__init__(*args, **kwargs)
+        
+class AutonolasData(TypedDict):
+    usd: float
+
+class CoinData(TypedDict):
+    autonolas: AutonolasData

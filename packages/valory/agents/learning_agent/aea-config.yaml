@@ -19,6 +19,8 @@ contracts:
 - valory/gnosis_safe_proxy_factory:0.1.0:bafybeihi4cvrnf5ne7t5cxcwix3dbtfjucfjux6zn4wouebjx3ldmrmnpm
 - valory/multisend:0.1.0:bafybeig5byt5urg2d2bsecufxe5ql7f4mezg3mekfleeh32nmuusx66p4y
 - valory/service_registry:0.1.0:bafybeieqgcuxmz4uxvlyb62mfsf33qy4xwa5lrij4vvcmrtcsfkng43oyq
+- valory/erc20:0.1.0:bafybeiel24epwfr5nsk5xt2dfdimrzhrqchjxdeeh6wpm6nz35w6po6osa
+- valory/checkpoint_approval:0.1.0:bafybeigkkxkb5bqhw34hz7czkclqxwrl4n4a3aibshconszw4wnazencni
 protocols:
 - open_aea/signing:1.0.0:bafybeihv62fim3wl2bayavfcg3u5e5cxu3b7brtu4cn5xoxd6lqwachasi
 - valory/abci:0.1.0:bafybeiaqmp7kocbfdboksayeqhkbrynvlfzsx4uy4x6nohywnmaig4an7u
@@ -31,8 +33,8 @@ protocols:
 skills:
 - valory/abstract_abci:0.1.0:bafybeihu2bcgjk2tqjiq2zhk3uogtfszqn4osvdt7ho3fubdpdj4jgdfjm
 - valory/abstract_round_abci:0.1.0:bafybeibovsktd3uxur45nrcomq5shcn46cgxd5idmhxbmjhg32c5abyqim
-- valory/learning_abci:0.1.0:bafybeics2eywsq54efsjf6f7cntvt3mlf6cjwuwoptuepfq4vvdovhxs7e
-- valory/learning_chained_abci:0.1.0:bafybeihjlm5wvlcrrupapxkhpuj6dfydn72usvb5nq6ipkw4n26zbr3hlq
+- valory/learning_abci:0.1.0:bafybeiazholqej7tr6gktrhwfkl6qmgvdym2kp3x2xvvijqbkhc2f62rbi
+- valory/learning_chained_abci:0.1.0:bafybeihiaok6qksclmvfj7ajlkzg7yjaepor7tuezscdmlmys6a6umzloe
 - valory/registration_abci:0.1.0:bafybeicnth5q4httefsusywx3zrrq4al47owvge72dqf2fziruicq6hqta
 - valory/reset_pause_abci:0.1.0:bafybeievjciqdvxhqxfjd4whqs27h6qbxqzrae7wwj7fpvxlvmtw3x35im
 - valory/termination_abci:0.1.0:bafybeid54buqxipiuduw7b6nnliiwsxajnltseuroad53wukfonpxca2om
@@ -84,13 +86,13 @@ type: connection
 config:
   ledger_apis:
     ethereum:
-      address: ${str:http://localhost:8545}
-      chain_id: ${int:31337}
+      address: ${str:https://ethereum-rpc.publicnode.com}
+      chain_id: ${int:1}
       poa_chain: ${bool:false}
       default_gas_price_strategy: ${str:eip1559}
     gnosis:
-      address: ${str:http://localhost:8545}
-      chain_id: ${int:1337}
+      address: ${str:https://virtual.gnosis.rpc.tenderly.co/0de4532e-b988-4f25-a1c1-e9982e991286}
+      chain_id: ${int:100}
       poa_chain: ${bool:false}
       default_gas_price_strategy: ${str:eip1559}
 ---
@@ -162,7 +164,7 @@ models:
       service_registry_address: ${str:null}
       setup:
         all_participants: ${list:["0x615d3278680337e2D39C3bc5042D959C7938B917"]}
-        safe_contract_address: ${str:0x5C5b146905c11Ee1fE7260c0338b52DCA9582a13}
+        safe_contract_address: ${str:0x86759e1057200bdf6549181b12c28f0a37e9266f}
         consensus_threshold: ${int:null}
       share_tm_config_on_startup: ${bool:false}
       sleep_time: 1
@@ -188,3 +190,8 @@ models:
       default_chain_id: ${str:gnosis}
       termination_from_block: ${int:34088325}
       transfer_target_address: ${str:0x615d3278680337e2D39C3bc5042D959C7938B917}
+      wxdai_contract_address: ${str:0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d}
+      agent_api_key: ${str:Bearer 1233}
+      api_url: ${str:http://192.168.100.130:8091}
+      check_approval_contract_address: ${str:0x60cC6fBa5461fB24b5363a0Ee4B8A2Aff0197883}
+      agent_party: ${str:not}
